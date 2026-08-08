@@ -1,0 +1,10 @@
+/build/
+Data/Raw/LlamaLib-*/android-arm64/
+Data/Raw/LlamaLib-*/android-x64/
+Data/Raw/LlamaLib-*/linux-x64/
+Data/Raw/LlamaLib-*/osx-arm64/
+Data/Raw/LlamaLib-*/osx-universal/
+Data/Raw/LlamaLib-*/osx-x64/
+Data/Raw/LlamaLib-*/visionos-arm64/
+Data/Raw/LlamaLib-*/win-x64/
+Builded_BurstDebugInformation_DoNotShip/
