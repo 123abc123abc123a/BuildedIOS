@@ -1,0 +1,76 @@
+name: Build Unsigned IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_DIR: .
+  PROJECT: Unity-iPhone.xcodeproj
+  SCHEME: Unity-iPhone
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          lfs: true
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PROJECT_DIR }}/build
+          key: deriveddata-${{ runner.os }}-${{ hashFiles('**/project.pbxproj') }}
+          restore-keys: |
+            deriveddata-${{ runner.os }}-
+
+      - name: Fix script permissions
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          find . -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+          chmod +x "Il2CppOutputProject/IL2CPP/build/deploy_arm64/il2cpp" 2>/dev/null || true
+          chmod +x "Il2CppOutputProject/IL2CPP/build/deploy_arm64/il2cpp-compile" 2>/dev/null || true
+          chmod +x "Il2CppOutputProject/IL2CPP/build/deploy_arm64/bee_backend/mac-arm64/bee_backend" 2>/dev/null || true
+
+      - name: Build unsigned .app
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          xcodebuild \
+            -project "${{ env.PROJECT }}" \
+            -scheme "${{ env.SCHEME }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ./build \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            ENABLE_BITCODE=NO \
+            DEBUG_INFORMATION_FORMAT=dwarf \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          APP=$(find build -name "*.app" -path "*Release-iphoneos*" | head -n1)
+          echo "Packaging $APP"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qr "$GITHUB_WORKSPACE/builded.ipa" Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: builded-unsigned-ipa
+          path: builded.ipa
+          retention-days: 7
